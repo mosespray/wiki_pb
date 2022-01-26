@@ -6,40 +6,105 @@
   environment:
       PGPASSWORD: 'pfqqzt64'
   roles:
-    - snmp_role
-    - guest-tools_role
-    - php_role
-    - postgresql_role
+#    - snmp_role
+#    - guest-tools_role
+#    - php_role
+#    - postgresql_role
   tasks:
-    - name: Copy the Media Wiki archive
+#    - name: Create bacula user
+#      ansible.builtin.command: /usr/bin/createuser bacula
+#      become: yes
+#      become_user: postgres
+#      register: result
+#      failed_when: result.rc > 1
+
+    - name: Copy postgresql.conf config file
       copy:
-        src: mediawiki-1.37.1.tar.gz
-        dest: /tmp/mediawiki-1.37.1.tar.gz
-        force: yes
-
-    - name: Install tar package
-      yum: name=tar update_cache=yes
-
-    - name: Unarchive mediawiki package
-      ansible.builtin.unarchive:
-        src: /tmp/mediawiki-1.37.1.tar.gz
-        dest: /tmp
-        remote_src: yes
-
-    - name: Copy the Media Wiki move script
-      copy:
-        src: movefiles
-        dest: /tmp/movefiles
+        src: postgresql.conf
+        dest: /var/lib/pgsql/data/postgresql.conf
         force: yes
 
     - name: Change file ownership, group and permissions
       ansible.builtin.file:
-        path: /tmp/movefiles
-        mode: '0744'
+        path: /var/lib/pgsql/data/postgresql.conf
+        owner: postgres
+        group: postgres
 
-    - name: Copy mediawiki files into /var/www/html
-      command: /tmp/movefiles
+    - name: Copy pg_hba.conf config file
+      copy:
+        src: pg_hba.conf
+        dest: /var/lib/pgsql/data/pg_hba.conf
+        force: yes
+
+    - name: Copy the mediawiki archive to /tmp
+      copy:
+        src: mediawiki-1.37.1.tar.gz
+        dest: /tmp
+        force: yes
+
+    - name: Copy the dbcmds file to /tmp
+      copy:
+        src: dbcmds
+        dest: /tmp/dbcmds
+        force: yes
+
+    - name: Run db alter statements
+      ansible.builtin.command: psql -f /tmp/dbcmds
+      become: yes
+      become_user: postgres
+#      register: result
+#      failed_when: result.rc > 1
+
+    - name: Install tar package
+      yum: name=tar update_cache=yes
+
+    - name: Create /var/www/dwlabs.fun/ directory if it does not exist
+      ansible.builtin.file:
+        path: /var/www/dwlabs.fun/
+        state: directory
+        mode: '0755'
+        owner: apache
+        group: apache
+
+    - name: Unarchive mediawiki archive
+      ansible.builtin.unarchive:
+        src: /tmp/mediawiki-1.37.1.tar.gz
+        dest: /var/www/
+        remote_src: yes
+        owner: apache
+        group: apache
+
+    - name: Create a symbolic link
+      ansible.builtin.file:
+        src: /var/www/mediawiki-1.37.1
+        dest: /var/www/dwlabs.fun/www
+        owner: apache
+        group: apache
+        state: link
 
     - name: Install git package
       yum: name=git update_cache=yes
 
+    - name: Copy the mediawiki httpd config file to /etc/httpd/conf.d
+      copy:
+        src: wiki.conf
+        dest: /etc/httpd/conf.d/wiki.conf
+        force: yes
+
+    - name: Touch /var/log/httpd/dwlabs.fun/error.log
+      ansible.builtin.file:
+        path: /var/log/httpd/dwlabs.fun/error.log
+        state: touch
+        mode: u=rw,g=r,o=r
+
+    - name: Touch /var/log/httpd/dwlabs.fun/requests.log
+      ansible.builtin.file:
+        path: /var/log/httpd/dwlabs.fun/requests.log
+        state: touch
+        mode: u=rw,g=r,o=r
+
+    - name: Enabling and Starting the service httpd
+      service:
+        name: httpd
+        enabled: yes
+        state: restarted
