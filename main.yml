@@ -1,0 +1,45 @@
+---
+- name: Install and configure Media wiki server
+  hosts: wiki
+  become: True
+  vars:
+  environment:
+      PGPASSWORD: 'pfqqzt64'
+  roles:
+    - snmp_role
+    - guest-tools_role
+    - php_role
+    - postgresql_role
+  tasks:
+    - name: Copy the Media Wiki archive
+      copy:
+        src: mediawiki-1.37.1.tar.gz
+        dest: /tmp/mediawiki-1.37.1.tar.gz
+        force: yes
+
+    - name: Install tar package
+      yum: name=tar update_cache=yes
+
+    - name: Unarchive mediawiki package
+      ansible.builtin.unarchive:
+        src: /tmp/mediawiki-1.37.1.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - name: Copy the Media Wiki move script
+      copy:
+        src: movefiles
+        dest: /tmp/movefiles
+        force: yes
+
+    - name: Change file ownership, group and permissions
+      ansible.builtin.file:
+        path: /tmp/movefiles
+        mode: '0744'
+
+    - name: Copy mediawiki files into /var/www/html
+      command: /tmp/movefiles
+
+    - name: Install git package
+      yum: name=git update_cache=yes
+
