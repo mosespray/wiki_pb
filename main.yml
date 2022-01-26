@@ -6,10 +6,10 @@
   environment:
       PGPASSWORD: 'pfqqzt64'
   roles:
-#    - snmp_role
-#    - guest-tools_role
-#    - php_role
-#    - postgresql_role
+    - snmp_role
+    - guest-tools_role
+    - php_role
+    - postgresql_role
   tasks:
 #    - name: Create bacula user
 #      ansible.builtin.command: /usr/bin/createuser bacula
