@@ -91,6 +91,14 @@
         dest: /etc/httpd/conf.d/wiki.conf
         force: yes
 
+    - name: Create /var/log/httpd/dwlabs.fun/ directory if it does not exist
+      ansible.builtin.file:
+        path: /var/log/httpd/dwlabs.fun/
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
     - name: Touch /var/log/httpd/dwlabs.fun/error.log
       ansible.builtin.file:
         path: /var/log/httpd/dwlabs.fun/error.log
